@@ -1,3 +1,1 @@
-console.log("hello world");
-console.log("hello world bussy");
-
+import { conn } from "./db/DB.js";

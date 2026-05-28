@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+    provider = "prisma-client"
+    output   = "../src/generated/prisma"
+}
+
+datasource db {
+    provider = "postgresql"
+
+}
+
+// start to create the schema 
+
+enum ReviewStatus {
+    PENDING
+    QUEUED
+    PROCESSING
+    COMPLETED
+    FAILED
+}
+
+enum IssueType {
+    BUG
+    SECURITY
+    PERFORMANCE
+    CODE_SMELL
+}
+
+enum Severity {
+    LOW
+    MEDIUM
+    HIGH
+    CRITICAL
+}
+
+model User {
+    id        String @id @default(cuid())
+    githubId  String @unique
+    username  String
+    email     String
+    avatarUrl String
+
+    accessToken  String
+    refreshToken String
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    repositories  Repository[]
+    notifications Notification[]
+}
+
+model Repository {
+    id String @id @default(cuid())
+
+    githubRepoId    String  @unique
+    githubWebhookId String?
+
+    name     String
+    fullName String
+
+    defaultBranch String?
+
+    isActive Boolean @default(true)
+
+    userId String
+    user   User   @relation(fields: [userId], references: [id])
+
+    reviews Review[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+model Review {
+    id String @id @default(cuid())
+
+    commitId String
+    branch   String
+
+    status ReviewStatus @default(PENDING)
+
+    aiSummary String?
+    score     Int?
+
+    repositoryId String
+    repository   Repository @relation(fields: [repositoryId], references: [id])
+
+    issues Issue[]
+
+    startedAt   DateTime?
+    completedAt DateTime?
+
+    createdAt DateTime @default(now())
+}
+
+model Issue {
+    id String @id @default(cuid())
+
+    type     IssueType
+    severity Severity
+
+    title       String
+    description String
+
+    filePath   String?
+    lineNumber Int?
+
+    reviewId String
+    review   Review @relation(fields: [reviewId], references: [id])
+
+    createdAt DateTime @default(now())
+}
+
+enum NotificationType {
+    EMAIL
+    WEBSOCKET
+}
+
+enum NotificationStatus {
+    PENDING
+    SENT
+    FAILED
+}
+
+model Notification {
+    id String @id @default(cuid())
+
+    type   NotificationType
+    status NotificationStatus
+
+    userId String
+    user   User   @relation(fields: [userId], references: [id])
+
+    createdAt DateTime @default(now())
+}
