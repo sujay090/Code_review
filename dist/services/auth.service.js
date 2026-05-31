@@ -14,30 +14,36 @@ class AuthService {
         return url.toString();
     }
     async exchangeCodeForToken(code) {
-        const response = await fetch("https://github.com/login/oauth/access_token", {
-            method: "POST",
-            headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                client_id: this.getRequiredEnv("GITHUB_CLIENT_ID"),
-                client_secret: this.getRequiredEnv("GITHUB_CLIENT_SECRET"),
-                code,
-                redirect_uri: this.getRequiredEnv("GITHUB_CALLBACK_URL"),
-            }),
-        });
-        if (!response.ok) {
-            throw new Error("Failed to exchange GitHub OAuth code");
+        try {
+            const response = await fetch("https://github.com/login/oauth/access_token", {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    client_id: this.getRequiredEnv("GITHUB_CLIENT_ID"),
+                    client_secret: this.getRequiredEnv("GITHUB_CLIENT_SECRET"),
+                    code,
+                    redirect_uri: this.getRequiredEnv("GITHUB_CALLBACK_URL"),
+                }),
+            });
+            if (!response.ok) {
+                throw new Error("Failed to exchange GitHub OAuth code");
+            }
+            const data = (await response.json());
+            if (data.error) {
+                throw new Error(data.error_description ?? data.error);
+            }
+            if (!data.access_token) {
+                throw new Error("GitHub did not return an access token");
+            }
+            return data.access_token;
         }
-        const data = (await response.json());
-        if (data.error) {
-            throw new Error(data.error_description ?? data.error);
+        catch (error) {
+            console.error("OAuth Error:", error);
+            throw error;
         }
-        if (!data.access_token) {
-            throw new Error("GitHub did not return an access token");
-        }
-        return data.access_token;
     }
     async getGithubUser(accessToken) {
         const response = await fetch("https://api.github.com/user", {

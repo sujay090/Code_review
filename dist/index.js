@@ -2,11 +2,17 @@ import express, {} from "express";
 import cors from "cors";
 import { conn, DbConnection } from "./db/DB.js";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 // routes
 import authRoutes from "./routes/auth.route.js";
 const app = express();
 const PORT = Number(process.env.PORT);
 const db = new DbConnection();
+const cookieSecret = process.env.COOKIE_SECRET;
+if (!cookieSecret) {
+    throw new Error("Missing environment variable: COOKIE_SECRET");
+}
+app.use(cookieParser(cookieSecret));
 app.use(cors({ origin: process.env.CORS_ORIGIN ?? false }));
 app.use(helmet());
 app.use(express.json());

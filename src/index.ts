@@ -15,8 +15,21 @@ const app = express();
 
 const PORT = Number(process.env.PORT!);
 const db = new DbConnection();
-app.use(cookieParser(process.env.COOKIE_SECRET));
-app.use(cors({ origin: process.env.CORS_ORIGIN ?? false }));
+const cookieSecret = process.env.COOKIE_SECRET;
+
+if (!cookieSecret) {
+  throw new Error("Missing environment variable: COOKIE_SECRET");
+}
+
+app.use(cookieParser(cookieSecret));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN ?? false,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  }),
+);
+
 app.use(helmet());
 app.use(express.json());
 

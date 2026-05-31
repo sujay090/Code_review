@@ -1,6 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
 import { authService } from "../services/auth.service.js";
-import type { User } from "../generated/prisma/client.js";
 
 const GITHUB_STATE_COOKIE = "github_oauth_state";
 const SESSION_COOKIE = "code_review_session";
@@ -16,6 +15,7 @@ export const loginWithGithub = (
     const githubAuthUrl = authService.getGithubAuthUrl(state);
 
     res.cookie(GITHUB_STATE_COOKIE, state, {
+      signed: true,
       httpOnly: true,
       maxAge: 10 * 60 * 1000,
       path: "/api/auth",
@@ -37,7 +37,7 @@ export const githubCallback = async (
   try {
     const code = req.query.code;
     const state = req.query.state;
-    const storedState = getCookie(req, GITHUB_STATE_COOKIE);
+    const storedState = getSignedCookie(req, GITHUB_STATE_COOKIE);
 
     if (typeof code !== "string") {
       res.status(400).json({ message: "Missing GitHub OAuth code" });
@@ -81,26 +81,7 @@ export const getMe = async (
   next: NextFunction,
 ) => {
   try {
-    const sessionId = getCookie(req, SESSION_COOKIE);
-
-    if (!sessionId) {
-      res.status(401).json({ message: "Not authenticated" });
-      return;
-    }
-
-    const user = await authService.getCurrentUser(sessionId);
-
-    if (!user) {
-      res.clearCookie(SESSION_COOKIE, {
-        path: "/",
-        sameSite: "lax",
-        secure: isProduction,
-      });
-      res.status(401).json({ message: "Not authenticated" });
-      return;
-    }
-
-    res.json({ user: toSafeUser(user) });
+    res.json({ user: req.user });
   } catch (error) {
     next(error);
   }
@@ -108,7 +89,7 @@ export const getMe = async (
 
 export const logout = (req: Request, res: Response, next: NextFunction) => {
   try {
-    const sessionId = getCookie(req, SESSION_COOKIE);
+    const sessionId = getSignedCookie(req, SESSION_COOKIE);
 
     if (sessionId) {
       authService.logout(sessionId);
@@ -125,37 +106,15 @@ export const logout = (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-const getCookie = (req: Request, cookieName: string): string | undefined => {
-  const cookieHeader = req.headers.cookie;
+const getSignedCookie = (
+  req: Request,
+  cookieName: string,
+): string | undefined => {
+  const cookie = req.signedCookies[cookieName];
 
-  if (!cookieHeader) {
-    return undefined;
-  }
-
-  const cookies = cookieHeader.split(";").map((cookie) => cookie.trim());
-  const targetCookie = cookies.find((cookie) =>
-    cookie.startsWith(`${cookieName}=`),
-  );
-
-  if (!targetCookie) {
-    return undefined;
-  }
-
-  return decodeURIComponent(targetCookie.slice(cookieName.length + 1));
+  return typeof cookie === "string" ? cookie : undefined;
 };
 
 const getClientUrl = (): string => {
   return process.env.CLIENT_URL ?? "http://localhost:5173";
-};
-
-const toSafeUser = (user: User) => {
-  return {
-    id: user.id,
-    githubId: user.githubId,
-    username: user.username,
-    email: user.email,
-    avatarUrl: user.avatarUrl,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  };
 };
