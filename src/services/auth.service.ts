@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { conn } from "../db/DB.js";
 import type { User } from "../generated/prisma/client.js";
+import { rd } from "../db/redis.js";
 
 export type GithubUser = {
   id: number;
@@ -23,11 +24,6 @@ type GithubAccessTokenResponse = {
   error_description?: string;
 };
 
-type Session = {
-  userId: string;
-  createdAt: Date;
-};
-
 interface IAuthService {
   createGithubState(): string;
   getGithubAuthUrl(state: string): string;
@@ -36,10 +32,9 @@ interface IAuthService {
   findOrCreateUser(githubUser: GithubUser, accessToken: string): Promise<User>;
   createSession(userId: string): Promise<string>;
   getCurrentUser(sessionId: string): Promise<User | null>;
-  logout(sessionId: string): void;
+  getUserById(userId: string): Promise<User | null>;
+  logout(sessionId: string): Promise<void>;
 }
-
-const sessions = new Map<string, Session>();
 
 class AuthService implements IAuthService {
   createGithubState(): string {
@@ -149,30 +144,37 @@ class AuthService implements IAuthService {
   async createSession(userId: string): Promise<string> {
     const sessionId = randomBytes(32).toString("hex");
 
-    sessions.set(sessionId, {
-      userId,
-      createdAt: new Date(),
+    await rd.set(`session:${sessionId}`, userId, {
+      EX: 7 * 24 * 60 * 60,
     });
 
     return sessionId;
   }
 
   async getCurrentUser(sessionId: string): Promise<User | null> {
-    const session = sessions.get(sessionId);
+    const userId = await rd.get(`session:${sessionId}`);
 
-    if (!session) {
+    if (!userId) {
       return null;
     }
 
     return conn.user.findUnique({
       where: {
-        id: session.userId,
+        id: userId,
       },
     });
   }
 
-  logout(sessionId: string): void {
-    sessions.delete(sessionId);
+  async getUserById(userId: string): Promise<User | null> {
+    return conn.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+  }
+
+  async logout(sessionId: string): Promise<void> {
+    await rd.del(`session:${sessionId}`);
   }
 
   private async getGithubPrimaryEmail(

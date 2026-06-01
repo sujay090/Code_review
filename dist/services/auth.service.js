@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { conn } from "../db/DB.js";
-const sessions = new Map();
+import { rd } from "../db/redis.js";
 class AuthService {
     createGithubState() {
         return randomBytes(32).toString("hex");
@@ -85,25 +85,31 @@ class AuthService {
     }
     async createSession(userId) {
         const sessionId = randomBytes(32).toString("hex");
-        sessions.set(sessionId, {
-            userId,
-            createdAt: new Date(),
+        await rd.set(`session:${sessionId}`, userId, {
+            EX: 7 * 24 * 60 * 60,
         });
         return sessionId;
     }
     async getCurrentUser(sessionId) {
-        const session = sessions.get(sessionId);
-        if (!session) {
+        const userId = await rd.get(`session:${sessionId}`);
+        if (!userId) {
             return null;
         }
         return conn.user.findUnique({
             where: {
-                id: session.userId,
+                id: userId,
             },
         });
     }
-    logout(sessionId) {
-        sessions.delete(sessionId);
+    async getUserById(userId) {
+        return conn.user.findUnique({
+            where: {
+                id: userId,
+            },
+        });
+    }
+    async logout(sessionId) {
+        await rd.del(`session:${sessionId}`);
     }
     async getGithubPrimaryEmail(accessToken) {
         const response = await fetch("https://api.github.com/user/emails", {

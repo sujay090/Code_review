@@ -14,7 +14,8 @@ interface IAuthService {
     findOrCreateUser(githubUser: GithubUser, accessToken: string): Promise<User>;
     createSession(userId: string): Promise<string>;
     getCurrentUser(sessionId: string): Promise<User | null>;
-    logout(sessionId: string): void;
+    getUserById(userId: string): Promise<User | null>;
+    logout(sessionId: string): Promise<void>;
 }
 declare class AuthService implements IAuthService {
     createGithubState(): string;
@@ -24,7 +25,8 @@ declare class AuthService implements IAuthService {
     findOrCreateUser(githubUser: GithubUser, accessToken: string): Promise<User>;
     createSession(userId: string): Promise<string>;
     getCurrentUser(sessionId: string): Promise<User | null>;
-    logout(sessionId: string): void;
+    getUserById(userId: string): Promise<User | null>;
+    logout(sessionId: string): Promise<void>;
     private getGithubPrimaryEmail;
     private getRequiredEnv;
 }

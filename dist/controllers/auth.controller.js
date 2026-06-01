@@ -64,11 +64,11 @@ export const getMe = async (req, res, next) => {
         next(error);
     }
 };
-export const logout = (req, res, next) => {
+export const logout = async (req, res, next) => {
     try {
         const sessionId = getSignedCookie(req, SESSION_COOKIE);
         if (sessionId) {
-            authService.logout(sessionId);
+            await authService.logout(sessionId);
         }
         res.clearCookie(SESSION_COOKIE, {
             path: "/",

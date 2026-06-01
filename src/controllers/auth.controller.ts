@@ -87,12 +87,16 @@ export const getMe = async (
   }
 };
 
-export const logout = (req: Request, res: Response, next: NextFunction) => {
+export const logout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const sessionId = getSignedCookie(req, SESSION_COOKIE);
 
     if (sessionId) {
-      authService.logout(sessionId);
+      await authService.logout(sessionId);
     }
 
     res.clearCookie(SESSION_COOKIE, {

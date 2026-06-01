@@ -5,6 +5,6 @@ const router = express.Router();
 router.get("/github", loginWithGithub);
 router.get("/github/callback", githubCallback);
 router.get("/me", validateRequest, getMe);
-router.post("/logout", logout);
+router.post("/logout", validateRequest, logout);
 export default router;
 //# sourceMappingURL=auth.route.js.map

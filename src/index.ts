@@ -7,9 +7,12 @@ import cors from "cors";
 import { conn, DbConnection } from "./db/DB.js";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import { rd } from "./db/redis.js";
 // routes
 
 import authRoutes from "./routes/auth.route.js";
+import githubRoutes from "./routes/github.route.js";
+import repositoryRoutes from "./routes/repository.route.js";
 
 const app = express();
 
@@ -39,6 +42,8 @@ app.get("/health", async (req: Request, res: Response) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/github", githubRoutes);
+app.use("/api/repositories", repositoryRoutes);
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   console.error(err);
@@ -52,6 +57,7 @@ const server = app.listen(PORT, () => {
 async function shutDown() {
   server.close(async () => {
     await conn.$disconnect();
+    await rd.quit();
     process.exit(0);
   });
 }
