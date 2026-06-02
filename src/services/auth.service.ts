@@ -49,7 +49,7 @@ class AuthService implements IAuthService {
       "redirect_uri",
       this.getRequiredEnv("GITHUB_CALLBACK_URL"),
     );
-    url.searchParams.set("scope", "read:user user:email");
+    url.searchParams.set("scope", "read:user user:email repo");
     url.searchParams.set("state", state);
     return url.toString();
   }

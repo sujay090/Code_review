@@ -13,6 +13,13 @@ import { rd } from "./db/redis.js";
 import authRoutes from "./routes/auth.route.js";
 import githubRoutes from "./routes/github.route.js";
 import repositoryRoutes from "./routes/repository.route.js";
+import webhookRoutes from "./routes/webhook.route.js";
+import reviewRoutes from "./routes/review.route.js";
+
+// workers — start BullMQ workers in this process
+import { worker as reviewWorker } from "./workers/review.worker.js";
+import { emailWorker } from "./workers/email.worker.js";
+import { reportWorker } from "./workers/report.worker.js";
 
 const app = express();
 
@@ -34,6 +41,11 @@ app.use(
 );
 
 app.use(helmet());
+
+// Webhook route needs raw body for HMAC signature verification —
+// must be mounted BEFORE express.json() so it receives a Buffer.
+app.use("/api/webhooks", express.raw({ type: "application/json" }), webhookRoutes);
+
 app.use(express.json());
 
 app.get("/health", async (req: Request, res: Response) => {
@@ -44,6 +56,7 @@ app.get("/health", async (req: Request, res: Response) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/github", githubRoutes);
 app.use("/api/repositories", repositoryRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   console.error(err);
@@ -52,9 +65,16 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
 
 const server = app.listen(PORT, () => {
   console.log("Server is running on port 4020");
+  console.log("Workers started: review (×3), email (×5), report (×2)");
 });
 
 async function shutDown() {
+  console.log("Shutting down...");
+  await Promise.all([
+    reviewWorker.close(),
+    emailWorker.close(),
+    reportWorker.close(),
+  ]);
   server.close(async () => {
     await conn.$disconnect();
     await rd.quit();

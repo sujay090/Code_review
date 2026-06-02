@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { repositoryService } from "../services/repository.service.js";
+import { authService } from "../services/auth.service.js";
 
 export const connectRepository = async (
   req: Request,
@@ -24,12 +25,24 @@ export const connectRepository = async (
       return;
     }
 
-    const repository = await repositoryService.connectRepository(req.user.id, {
-      githubRepoId,
-      name,
-      fullName,
-      defaultBranch,
-    });
+    // Fetch the full user to get the access token for webhook registration
+    const user = await authService.getUserById(req.user.id);
+
+    if (!user?.accessToken) {
+      res.status(401).json({ message: "GitHub account is not connected" });
+      return;
+    }
+
+    const repository = await repositoryService.connectRepository(
+      req.user.id,
+      user.accessToken,
+      {
+        githubRepoId,
+        name,
+        fullName,
+        defaultBranch,
+      },
+    );
 
     res.status(201).json({
       repository: toRepositoryResponse(repository),
