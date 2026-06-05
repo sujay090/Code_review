@@ -36,6 +36,7 @@
     "typescript-eslint": "^8.59.4"
   },
   "dependencies": {
+    "@google/genai": "^2.8.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@types/cookie-parser": "^1.4.10",
@@ -45,8 +46,8 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "helmet": "^8.2.0",
+    "ioredis": "^5.10.1",
     "nodemailer": "^8.0.10",
-    "pg": "^8.21.0",
-    "redis": "^6.0.0"
+    "pg": "^8.21.0"
   }
 }

@@ -144,9 +144,7 @@ class AuthService implements IAuthService {
   async createSession(userId: string): Promise<string> {
     const sessionId = randomBytes(32).toString("hex");
 
-    await rd.set(`session:${sessionId}`, userId, {
-      EX: 7 * 24 * 60 * 60,
-    });
+    await rd.set(`session:${sessionId}`, userId, "EX", 7 * 24 * 60 * 60);
 
     return sessionId;
   }

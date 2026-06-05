@@ -1,7 +1,7 @@
 import express, {
-  type Response,
-  type Request,
-  type NextFunction,
+    type Response,
+    type Request,
+    type NextFunction,
 } from "express";
 import cors from "cors";
 import { conn, DbConnection } from "./db/DB.js";
@@ -28,16 +28,16 @@ const db = new DbConnection();
 const cookieSecret = process.env.COOKIE_SECRET;
 
 if (!cookieSecret) {
-  throw new Error("Missing environment variable: COOKIE_SECRET");
+    throw new Error("Missing environment variable: COOKIE_SECRET");
 }
 
 app.use(cookieParser(cookieSecret));
 app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN ?? false,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  }),
+    cors({
+        origin: process.env.CORS_ORIGIN ?? false,
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    }),
 );
 
 app.use(helmet());
@@ -49,8 +49,8 @@ app.use("/api/webhooks", express.raw({ type: "application/json" }), webhookRoute
 app.use(express.json());
 
 app.get("/health", async (req: Request, res: Response) => {
-  const health = await db.healthCheck();
-  res.status(health.message === "healthy" ? 200 : 500).json(health);
+    const health = await db.healthCheck();
+    res.status(health.message === "healthy" ? 200 : 500).json(health);
 });
 
 app.use("/api/auth", authRoutes);
@@ -59,27 +59,27 @@ app.use("/api/repositories", repositoryRoutes);
 app.use("/api/reviews", reviewRoutes);
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
-  console.error(err);
-  res.status(500).json({ message: "Internal Server Error" });
+    console.error(err);
+    res.status(500).json({ message: "Internal Server Error" });
 });
 
 const server = app.listen(PORT, () => {
-  console.log("Server is running on port 4020");
-  console.log("Workers started: review (×3), email (×5), report (×2)");
+    console.log("Server is running on port 4020");
+    console.log("Workers started: review (×3), email (×5), report (×2)");
 });
 
 async function shutDown() {
-  console.log("Shutting down...");
-  await Promise.all([
-    reviewWorker.close(),
-    emailWorker.close(),
-    reportWorker.close(),
-  ]);
-  server.close(async () => {
-    await conn.$disconnect();
-    await rd.quit();
-    process.exit(0);
-  });
+    console.log("Shutting down...");
+    await Promise.all([
+        reviewWorker.close(),
+        emailWorker.close(),
+        reportWorker.close(),
+    ]);
+    server.close(async () => {
+        await conn.$disconnect();
+        rd.disconnect();
+        process.exit(0);
+    });
 }
 
 process.on("SIGINT", shutDown);

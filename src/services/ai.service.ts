@@ -1,84 +1,23 @@
 /**
- * AI Service — Gemini REST API integration for code review.
+ * AI Service — NVIDIA NIM integration for code review.
  *
- * Uses the Gemini 2.0 Flash model with structured JSON output
- * so the response is always valid, typed JSON (no manual parsing).
+ * Uses NVIDIA's OpenAI-compatible chat completions API
+ * with JSON mode for structured output.
  */
 
-type GeminiIssue = {
-  type: "BUG" | "SECURITY" | "PERFORMANCE" | "CODE_SMELL";
-  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  title: string;
-  description: string;
-  filePath: string | null;
-  lineNumber: number | null;
+type ReviewIssue = {
+    type: "BUG" | "SECURITY" | "PERFORMANCE" | "CODE_SMELL";
+    severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    title: string;
+    description: string;
+    filePath: string | null;
+    lineNumber: number | null;
 };
 
 export type AiReviewResult = {
-  summary: string;
-  score: number;
-  issues: GeminiIssue[];
-};
-
-/**
- * The JSON schema we send to Gemini to enforce structured output.
- * This ensures the model returns exactly the shape we need.
- */
-const RESPONSE_SCHEMA = {
-  type: "OBJECT",
-  properties: {
-    summary: {
-      type: "STRING",
-      description: "A concise overall summary of the code quality in the diff",
-    },
-    score: {
-      type: "INTEGER",
-      description:
-        "A code quality score from 0 to 100 (100 = perfect, 0 = terrible)",
-    },
-    issues: {
-      type: "ARRAY",
-      description: "List of issues found in the code diff",
-      items: {
-        type: "OBJECT",
-        properties: {
-          type: {
-            type: "STRING",
-            enum: ["BUG", "SECURITY", "PERFORMANCE", "CODE_SMELL"],
-            description: "The category of the issue",
-          },
-          severity: {
-            type: "STRING",
-            enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
-            description: "How severe the issue is",
-          },
-          title: {
-            type: "STRING",
-            description: "Short title summarising the issue",
-          },
-          description: {
-            type: "STRING",
-            description:
-              "Detailed explanation of the issue and how to fix it",
-          },
-          filePath: {
-            type: "STRING",
-            description:
-              "The file path where the issue was found, or null if not applicable",
-            nullable: true,
-          },
-          lineNumber: {
-            type: "INTEGER",
-            description:
-              "The line number where the issue was found, or null if not applicable",
-            nullable: true,
-          },
-        },
-        required: ["type", "severity", "title", "description"],
-      },
-    },
-  },
-  required: ["summary", "score", "issues"],
+    summary: string;
+    score: number;
+    issues: ReviewIssue[];
 };
 
 const SYSTEM_PROMPT = `You are an expert code reviewer. You will receive a git diff and must analyse it for:
@@ -93,105 +32,125 @@ Guidelines:
 - Be specific about file paths and line numbers when possible
 - Provide clear fix suggestions in the description
 - Score fairly: 90-100 = excellent, 70-89 = good, 50-69 = needs improvement, below 50 = significant issues
-- If the diff is clean, return an empty issues array and a high score`;
+- If the diff is clean, return an empty issues array and a high score
 
-type GeminiResponse = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string;
-      }>;
+You MUST respond with valid JSON matching this exact schema:
+{
+  "summary": "string — concise overall summary of code quality",
+  "score": "integer 0-100 — code quality score",
+  "issues": [
+    {
+      "type": "BUG | SECURITY | PERFORMANCE | CODE_SMELL",
+      "severity": "LOW | MEDIUM | HIGH | CRITICAL",
+      "title": "string — short title",
+      "description": "string — detailed explanation and fix suggestion",
+      "filePath": "string | null — file path where issue was found",
+      "lineNumber": "integer | null — line number where issue was found"
+    }
+  ]
+}
+
+Respond ONLY with the JSON object. No markdown, no explanation, no code fences.`;
+
+const NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1";
+
+type NvidiaChoice = {
+    message?: {
+        content?: string;
     };
-  }>;
-  error?: {
-    message: string;
-  };
+};
+
+type NvidiaResponse = {
+    choices?: NvidiaChoice[];
+    error?: {
+        message: string;
+    };
 };
 
 class AiService {
-  /**
-   * Send a commit diff to Gemini for code review analysis.
-   * Returns a structured review result with summary, score, and issues.
-   */
-  async reviewCode(
-    diff: string,
-    repoFullName: string,
-  ): Promise<AiReviewResult> {
-    const apiKey = this.getRequiredEnv("GEMINI_API_KEY");
-    const model = "gemini-2.0-flash";
+    private apiKey: string;
+    private model: string;
 
-    // Truncate very large diffs to stay within token limits
-    const maxDiffLength = 30_000;
-    const truncatedDiff =
-      diff.length > maxDiffLength
-        ? diff.slice(0, maxDiffLength) +
-          "\n\n... [diff truncated due to length] ..."
-        : diff;
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: `Review the following git diff from the repository "${repoFullName}":\n\n\`\`\`diff\n${truncatedDiff}\n\`\`\``,
-              },
-            ],
-          },
-        ],
-        systemInstruction: {
-          parts: [{ text: SYSTEM_PROMPT }],
-        },
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: RESPONSE_SCHEMA,
-          temperature: 0.3,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Gemini API error (${response.status}): ${errorText}`,
-      );
+    constructor() {
+        const apiKey = process.env.NVIDIA_KEY;
+        if (!apiKey) {
+            throw new Error("Missing environment variable: NVIDIA_KEY");
+        }
+        this.apiKey = apiKey;
+        this.model = "meta/llama-3.3-70b-instruct";
     }
 
-    const data = (await response.json()) as GeminiResponse;
+    /**
+     * Send a commit diff to NVIDIA NIM for code review analysis.
+     * Returns a structured review result with summary, score, and issues.
+     */
+    async reviewCode(
+        diff: string,
+        repoFullName: string,
+    ): Promise<AiReviewResult> {
+        // Truncate very large diffs to stay within token limits
+        const maxDiffLength = 30_000;
+        const truncatedDiff =
+            diff.length > maxDiffLength
+                ? diff.slice(0, maxDiffLength) +
+                "\n\n... [diff truncated due to length] ..."
+                : diff;
 
-    if (data.error) {
-      throw new Error(`Gemini API error: ${data.error.message}`);
+        const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${this.apiKey}`,
+            },
+            body: JSON.stringify({
+                model: this.model,
+                messages: [
+                    {
+                        role: "system",
+                        content: SYSTEM_PROMPT,
+                    },
+                    {
+                        role: "user",
+                        content: `Review the following git diff from the repository "${repoFullName}":\n\n\`\`\`diff\n${truncatedDiff}\n\`\`\``,
+                    },
+                ],
+                temperature: 0.3,
+                max_tokens: 4096,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(
+                `NVIDIA NIM API error (${response.status}): ${errorText}`,
+            );
+        }
+
+        const data = (await response.json()) as NvidiaResponse;
+
+        if (data.error) {
+            throw new Error(`NVIDIA NIM API error: ${data.error.message}`);
+        }
+
+        const text = data.choices?.[0]?.message?.content;
+
+        if (!text) {
+            throw new Error("NVIDIA NIM returned an empty response");
+        }
+
+        // Strip markdown code fences if the model wraps the JSON
+        const cleaned = text
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
+
+        const result = JSON.parse(cleaned) as AiReviewResult;
+
+        // Clamp score to 0–100
+        result.score = Math.max(0, Math.min(100, result.score));
+
+        return result;
     }
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      throw new Error("Gemini returned an empty response");
-    }
-
-    const result = JSON.parse(text) as AiReviewResult;
-
-    // Clamp score to 0–100
-    result.score = Math.max(0, Math.min(100, result.score));
-
-    return result;
-  }
-
-  private getRequiredEnv(key: string): string {
-    const value = process.env[key];
-    if (!value) {
-      throw new Error(`Missing environment variable: ${key}`);
-    }
-    return value;
-  }
 }
 
 const aiService = new AiService();
