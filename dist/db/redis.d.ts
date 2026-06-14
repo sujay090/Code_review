@@ -1,3 +1,4 @@
-declare const rd: import("redis").RedisClientType<{}, {}, {}, 3, {}>;
+import { Redis } from "ioredis";
+declare const rd: Redis;
 export { rd };
 //# sourceMappingURL=redis.d.ts.map

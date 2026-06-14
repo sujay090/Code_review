@@ -6,7 +6,7 @@ export type ConnectRepositoryInput = {
     defaultBranch: string | null;
 };
 declare class RepositoryService {
-    connectRepository(userId: string, repository: ConnectRepositoryInput): Promise<Repository>;
+    connectRepository(userId: string, accessToken: string, repository: ConnectRepositoryInput): Promise<Repository>;
     getUserRepositories(userId: string): Promise<Repository[]>;
 }
 declare const repositoryService: RepositoryService;

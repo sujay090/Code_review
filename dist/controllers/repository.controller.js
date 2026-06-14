@@ -1,4 +1,5 @@
 import { repositoryService } from "../services/repository.service.js";
+import { authService } from "../services/auth.service.js";
 export const connectRepository = async (req, res, next) => {
     try {
         if (!req.user) {
@@ -13,7 +14,13 @@ export const connectRepository = async (req, res, next) => {
             res.status(400).json({ message: "Invalid repository payload" });
             return;
         }
-        const repository = await repositoryService.connectRepository(req.user.id, {
+        // Fetch the full user to get the access token for webhook registration
+        const user = await authService.getUserById(req.user.id);
+        if (!user?.accessToken) {
+            res.status(401).json({ message: "GitHub account is not connected" });
+            return;
+        }
+        const repository = await repositoryService.connectRepository(req.user.id, user.accessToken, {
             githubRepoId,
             name,
             fullName,

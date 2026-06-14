@@ -9,7 +9,7 @@ class AuthService {
         const url = new URL("https://github.com/login/oauth/authorize");
         url.searchParams.set("client_id", this.getRequiredEnv("GITHUB_CLIENT_ID"));
         url.searchParams.set("redirect_uri", this.getRequiredEnv("GITHUB_CALLBACK_URL"));
-        url.searchParams.set("scope", "read:user user:email");
+        url.searchParams.set("scope", "read:user user:email repo");
         url.searchParams.set("state", state);
         return url.toString();
     }
@@ -85,9 +85,7 @@ class AuthService {
     }
     async createSession(userId) {
         const sessionId = randomBytes(32).toString("hex");
-        await rd.set(`session:${sessionId}`, userId, {
-            EX: 7 * 24 * 60 * 60,
-        });
+        await rd.set(`session:${sessionId}`, userId, "EX", 7 * 24 * 60 * 60);
         return sessionId;
     }
     async getCurrentUser(sessionId) {
