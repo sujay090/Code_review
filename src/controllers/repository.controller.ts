@@ -15,16 +15,6 @@ export const connectRepository = async (
 
     const { githubRepoId, name, fullName, defaultBranch } = req.body;
 
-    if (
-      typeof githubRepoId !== "string" ||
-      typeof name !== "string" ||
-      typeof fullName !== "string" ||
-      (defaultBranch !== null && typeof defaultBranch !== "string")
-    ) {
-      res.status(400).json({ message: "Invalid repository payload" });
-      return;
-    }
-
     // Fetch the full user to get the access token for webhook registration
     const user = await authService.getUserById(req.user.id);
 

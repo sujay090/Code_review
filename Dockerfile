@@ -12,11 +12,13 @@ RUN npm ci
 
 COPY . .
 
+RUN npx prisma generate
+
 RUN npm run build
 
 
 # stage2:Run
-FROM node:24:alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
@@ -25,8 +27,10 @@ COPY package*.json ./
 RUN npm install --only=production
 
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/prisma ./prisma
 
-
-EXPOSE 3000
+EXPOSE 4020
 
 CMD [ "node", "dist/index.js" ]

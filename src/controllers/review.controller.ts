@@ -20,14 +20,7 @@ export const getReviews = async (
             return;
         }
 
-        const { repositoryId } = req.query;
-
-        if (typeof repositoryId !== "string" || !repositoryId) {
-            res
-                .status(400)
-                .json({ message: "repositoryId query parameter is required" });
-            return;
-        }
+        const repositoryId = req.query.repositoryId as string;
 
         // Verify the repository belongs to the current user
         const repository = await conn.repository.findUnique({
@@ -62,12 +55,7 @@ export const getReviewById = async (
             return;
         }
 
-        const id = req.params.id;
-
-        if (typeof id !== "string" || !id) {
-            res.status(400).json({ message: "Review ID is required" });
-            return;
-        }
+        const id = req.params.id as string;
 
         const review = await reviewService.getReviewById(id);
 
@@ -109,12 +97,7 @@ export const createManualReview = async (
             return;
         }
 
-        const { repositoryId } = req.body as { repositoryId?: string };
-
-        if (!repositoryId) {
-            res.status(400).json({ message: "repositoryId is required" });
-            return;
-        }
+        const { repositoryId } = req.body as { repositoryId: string };
 
         // Verify the repository belongs to the current user
         const repository = await conn.repository.findUnique({

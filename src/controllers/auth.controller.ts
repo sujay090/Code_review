@@ -35,16 +35,11 @@ export const githubCallback = async (
   next: NextFunction,
 ) => {
   try {
-    const code = req.query.code;
-    const state = req.query.state;
+    const code = req.query.code as string;
+    const state = req.query.state as string;
     const storedState = getSignedCookie(req, GITHUB_STATE_COOKIE);
 
-    if (typeof code !== "string") {
-      res.status(400).json({ message: "Missing GitHub OAuth code" });
-      return;
-    }
-
-    if (typeof state !== "string" || !storedState || storedState !== state) {
+    if (!storedState || storedState !== state) {
       res.status(401).json({ message: "Invalid GitHub OAuth state" });
       return;
     }

@@ -13,8 +13,11 @@ export const getRepositories = async (
       return;
     }
 
-    const page = parsePositiveNumber(req.query.page, 1);
-    const limit = Math.min(parsePositiveNumber(req.query.limit, 10), 30);
+    // Values are already validated, coerced, and defaulted by Zod middleware
+    const { page, limit } = req.query as unknown as {
+      page: number;
+      limit: number;
+    };
     const user = await authService.getUserById(req.user.id);
 
     if (!user?.accessToken) {
@@ -38,19 +41,3 @@ export const getRepositories = async (
   }
 };
 
-const parsePositiveNumber = (
-  value: Request["query"][string],
-  fallback: number,
-): number => {
-  if (typeof value !== "string") {
-    return fallback;
-  }
-
-  const parsedValue = Number(value);
-
-  if (!Number.isInteger(parsedValue) || parsedValue < 1) {
-    return fallback;
-  }
-
-  return parsedValue;
-};
