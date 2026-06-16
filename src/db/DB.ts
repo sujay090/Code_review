@@ -31,7 +31,7 @@ class DbConnection implements IDbConnection {
             // 1. The QUERY extension intercepts database WRITES before they happen
             query: {
                 user: {
-                    async $allOperations({ operation, args, query }) {
+                    async $allOperations({ operation, args, query }: any) {
                         const anyArgs = args as any;
 
                         // Check if we are doing an operation that writes to the database
@@ -76,7 +76,7 @@ class DbConnection implements IDbConnection {
                     // Tell Prisma to automatically compute the `accessToken` field when returning a User
                     accessToken: {
                         needs: { accessToken: true }, // We need the raw encrypted token from the DB
-                        compute(user) {
+                        compute(user: any) {
                             if (!user.accessToken) return user.accessToken;
                             try {
                                 // Try to decrypt it so the application code sees the plain-text token
@@ -90,7 +90,7 @@ class DbConnection implements IDbConnection {
                     // Do the exact same thing for refreshToken
                     refreshToken: {
                         needs: { refreshToken: true },
-                        compute(user) {
+                        compute(user: any) {
                             if (!user.refreshToken) return user.refreshToken;
                             try {
                                 return decrypt(user.refreshToken);

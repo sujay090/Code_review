@@ -101,12 +101,12 @@ const reportWorker = new Worker(
             // Calculate stats
             const totalReviews = reviews.length;
             const totalScore = reviews.reduce(
-                (sum, r) => sum + (r.score ?? 0),
+                (sum: any, r: any) => sum + (r.score ?? 0),
                 0,
             );
             const avgScore = Math.round(totalScore / totalReviews);
             const totalIssues = reviews.reduce(
-                (sum, r) => sum + r._count.issues,
+                (sum: any, r: any) => sum + r._count.issues,
                 0,
             );
 
