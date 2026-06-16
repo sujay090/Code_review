@@ -1,5 +1,5 @@
 # choosing the base image
-FROM node:24-alpine as builder
+FROM node:24-alpine AS builder
 
 # setting the working directory 
 WORKDIR /app
@@ -12,7 +12,7 @@ RUN npm ci
 
 COPY . .
 
-RUN npx prisma generate
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 
 RUN npm run build
 
